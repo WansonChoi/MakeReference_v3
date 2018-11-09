@@ -1,36 +1,45 @@
 # -*- coding: utf-8 -*-
-import os, sys
+import os, sys, re
 import pandas as pd
 import argparse, textwrap
 
 
-def HLAtoSequences(_p_ped, _dictionary, _type, _out):
+########## < Core Global Variables > ##########
+
+std_MAIN_PROCESS_NAME = "\n[%s]: " % (os.path.basename(__file__))
+std_ERROR_MAIN_PROCESS_NAME = "\n[%s::ERROR]: " % (os.path.basename(__file__))
+std_WARNING_MAIN_PROCESS_NAME = "\n[%s::WARNING]: " % (os.path.basename(__file__))
+
+HLA_names = ["A", "B", "C", "DPA1", "DPB1", "DQA1", "DQB1", "DRB1"]
+HLA_names2 = ["A", "C", "B", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
+isREVERSE = {'A': False, 'C': True, 'B': True, 'DRB1': True, 'DQA1': False, 'DQB1': True, 'DPA1': True, 'DPB1': False}
+
+
+def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
+                   _return_as_dataframe=False):
+
+
 
     ########## < Core Variables > ##########
 
-    HLA_names = ["A", "B", "C", "DPA1", "DPB1", "DQA1", "DQB1", "DRB1"]
-
-    # isREVERSE = {'A': False, 'C': True, 'B': True, 'DRB1': True, 'DQA1': False, 'DQB1': True, 'DPA1': True, 'DPB1': False}
 
     HLA_DICTIONARY = pd.DataFrame()
-    HLA_DICTIONARY_dict = {}
+    HLA_DICTIONARY2 = {}
     ALLELES_SEQ_LENGTH = {}
 
-    # Module Name for stdout
-    std_MAIN_PROCESS_NAME = "\n[%s]: " % (os.path.basename(__file__))
-    print(std_MAIN_PROCESS_NAME + "Init.")
+
 
 
     ########## < Argument checking > ##########
 
     # (1) ped file existence
-    if not os.path.exists(_p_ped):
-        print(_p_ped)
+    if not os.path.exists(_hped):
+        print(_hped)
         print(std_MAIN_PROCESS_NAME + "Given ped file dosen't exist. Please check it again.\n")
         sys.exit()
 
     # (2) HLA DICTIONARY file
-    if not os.path.exists(_dictionary):
+    if not os.path.exists(_dictionary_seq):
         print(std_MAIN_PROCESS_NAME + "Given dictionary file dosen't exist. Please check it again.\n")
         sys.exit()
 
@@ -40,10 +49,13 @@ def HLAtoSequences(_p_ped, _dictionary, _type, _out):
         sys.exit()
 
 
+
+
     ########## < Control Flags > ##########
 
     LOADING_DICTIONARY = 1
-    LOADING_COATED_PED = 1
+    LOADING_HPED = 1
+    CLEANING_HPED = 1
     BRINGING_SEQUENCES = 1
     EXPORTING_OUTPUT_PED = 1
 
@@ -53,50 +65,48 @@ def HLAtoSequences(_p_ped, _dictionary, _type, _out):
 
         ########## <1. Dictionary Preparation> ##########
 
-        print("\n[1] Loading Dictionary Data.\n")
+        print("\n[1] Loading \"Old\" Dictionary Data(created by Sherman Jia.\n")
+        HLA_DICTIONARY = pd.read_table(_dictionary_seq, sep='\t', header=None, names=["Alleles", "Seqs", "INS"], index_col=0).fillna("")
 
-        if os.path.isfile(_dictionary):
-            HLA_DICTIONARY = pd.read_table(_dictionary, sep='\t', header=None, names=["Alleles", "Seqs"], index_col=0)
-        else:
-            print(std_MAIN_PROCESS_NAME + "Given Dictionary file doesn't exit!\n")
-            sys.exit()
-
-        # (2018. 7. 13.) deprecated - going back to use HLA gene captioned way.
-        # # Processing HLA gene caption parts(splited by '*')
-        # df_temp = pd.DataFrame(HLA_DICTIONARY.loc[:, "Alleles"].apply(lambda x : x.split('*')).tolist(), columns=["HLA", "Alleles"])
-        #
-        # HLA_DICTIONARY = pd.concat([df_temp, HLA_DICTIONARY.loc[:, "Seqs"]], axis=1).set_index('HLA')
-        print(HLA_DICTIONARY.head())
-
-
-        ### Dividing `HLA_DICTIONARY` in advance.
-
-        # For performance efficiency, `HLA_DICTIONARY` will be divded by HLA gene type in advance.
-        HLA_DICTIONARY_dict = {HLA_names[i]: HLA_DICTIONARY.filter(regex= ''.join(["^", HLA_names[i], "\*"]), axis=0) for i in range(0, len(HLA_names))}
-        # HLA_DICTIONARY_dict = {HLA_names[i]: HLA_DICTIONARY.loc[HLA_names[i], :].reset_index(drop=True).set_index('Alleles') for i in range(0, len(HLA_names))}
+        # Dividing `HLA_DICTIONARY` in advance.
+        HLA_DICTIONARY2 = {HLA_names[i]: HLA_DICTIONARY.filter(regex= ''.join(["^", HLA_names[i], "\:"]), axis=0) for i in range(0, len(HLA_names))}
 
         for i in range(0, len(HLA_names)):
             print("\nSequence Information of %s" % HLA_names[i])
-            print(HLA_DICTIONARY_dict[HLA_names[i]].head())
+            print(HLA_DICTIONARY2[HLA_names[i]].head())
 
-        ALLELES_SEQ_LENGTH = {HLA_names[i] : len(HLA_DICTIONARY_dict[HLA_names[i]].iat[0, 0]) for i in range(0, len(HLA_names))}
+        ALLELES_SEQ_LENGTH = {HLA_names[i] : (len(HLA_DICTIONARY2[HLA_names[i]].iat[0, 0]) + len(HLA_DICTIONARY2[HLA_names[i]].iat[0, 1])) for i in range(0, len(HLA_names))}
 
-        for i in range(0, len(HLA_names)):
-            print("\nSequence Length of %s" % HLA_names[i])
-            print(ALLELES_SEQ_LENGTH[HLA_names[i]])
+        # for i in range(0, len(HLA_names)):
+        #     print("\nSequence Length of %s" % HLA_names[i])
+        #     print(ALLELES_SEQ_LENGTH[HLA_names[i]])
 
 
 
-    if LOADING_COATED_PED:
+    if LOADING_HPED:
 
         ########## <2. Loading Coated PED(Input PED) file> ##########
 
         print("\n[2] Loading Input PED file.")
 
-        INPUT_PED = pd.read_table(_p_ped, sep='\t', header=None, index_col=[0, 1, 2, 3, 4, 5], dtype=str)
-        INPUT_PED.columns = pd.Index([name + '_' + str(j + 1) for name in HLA_names for j in range(0, 2)])
+        HPED = pd.read_table(_hped, sep='\t', header=None, index_col=[0, 1, 2, 3, 4, 5], dtype=str)
+        HPED.columns = pd.Index([name + '_' + str(j + 1) for name in HLA_names for j in range(0, 2)])
 
-        print(INPUT_PED.head())
+        print(HPED.head())
+
+
+
+    if CLEANING_HPED:
+
+        ########## <2. Loading Coated PED(Input PED) file> ##########
+
+        print("\n[3] Cleaning HLA allele names.")
+
+        CHPED = pd.concat([HPED.filter(regex='_'.join([HLA_names[i], '\d{1}']), axis=1).applymap(lambda x : NomenCleaner_forOld(x, HLA_names[i], HLA_DICTIONARY2[HLA_names[i]].index.to_series()) if x != "0" else x) for i in range(0, len(HLA_names))], axis=1)
+        print(CHPED.head())
+
+        # Exporting
+        CHPED.to_csv(_out+".chped", sep='\t', header=False, index=True)
 
 
 
@@ -104,41 +114,35 @@ def HLAtoSequences(_p_ped, _dictionary, _type, _out):
 
         ########## <3. Bringing Sequences> ##########
 
-        print("\n[3]: Transforming Allele names to Sequences.")
+        print("\n[4]: Transforming Allele names to Sequences.")
 
         l_FOR_OUTPUT = []
-        l_FOR_OUTPUT_test = []
 
         for i in range(0, len(HLA_names)):
 
-            curr_dict = HLA_DICTIONARY_dict[HLA_names[i]]
+            ### Bringing Sequences
 
-            df_temp = INPUT_PED.filter(regex='_'.join([HLA_names[i], '\d{1}']), axis=1)
-            # print(df_temp.head())
+            curr_dict = HLA_DICTIONARY2[HLA_names[i]]
 
-            df_temp = df_temp.applymap(lambda x : BringSequence(x, curr_dict) if x != "0" else x)
-            # print(df_temp.head())
+            # HLA columns(each 2 columns)
+            df_temp = CHPED.filter(regex='_'.join([HLA_names[i], '\d{1}']), axis=1).applymap(lambda x : BringSequence(x, HLA_names[i], curr_dict) if (x != "0" or x != "-1") else x)
+            print(df_temp.head())
 
-            l_FOR_OUTPUT_test.append(df_temp)
 
-            # print("\n===============\n")
 
-            # Now, we need to iterate on the number of rows of this DataFrame
+            ### Chop up
 
             COLUMNS_BY_HLA = []
-            # COLUMNS_BY_HLA_test = []
 
             for j in range(0, len(df_temp)):
 
                 if df_temp.iat[j, 0] != '0' and df_temp.iat[j, 1] != '0':
 
                     # (Case1) Most normal case - wehn allele_name is found as pair.
-                    # ex) allele1 : A*25:01:01  /  allele2 : A*03:01:01:01
 
                     # seq1 = df_temp.iat[j, 0] if not isREVERSE[HLA_name[i]] else df_temp.iat[j, 0][::-1]
                     # seq2 = df_temp.iat[j, 1] if not isREVERSE[HLA_name[i]] else df_temp.iat[j, 1][::-1]
 
-                    # (2018. 3. 9) 다시 여기서 reverse안시키는 걸로 바꿈
                     seq1 = df_temp.iat[j, 0]
                     seq2 = df_temp.iat[j, 1]
 
@@ -154,13 +158,8 @@ def HLAtoSequences(_p_ped, _dictionary, _type, _out):
                     PAIRED = [value for item in zip(seq1, seq1) for value in item]
 
                 COLUMNS_BY_HLA.append(PAIRED)
-                # COLUMNS_BY_HLA_test.append(''.join(PAIRED))
-
 
             l_FOR_OUTPUT.append(pd.DataFrame(COLUMNS_BY_HLA))
-            # l_FOR_OUTPUT_test.append(pd.Series(COLUMNS_BY_HLA_test))
-
-            # End of interation. Don't get confused.
 
 
 
@@ -171,32 +170,103 @@ def HLAtoSequences(_p_ped, _dictionary, _type, _out):
         print("\n[4]: Exporting OUTPUT PED file.")
 
         df_OUTPUT = pd.concat(l_FOR_OUTPUT, axis=1)
-        df_OUTPUT.index = INPUT_PED.index
+        df_OUTPUT.index = HPED.index
         df_OUTPUT.columns = pd.Index(range(0, df_OUTPUT.shape[1]))
-
-        print(df_OUTPUT.head())
-
+        # print(df_OUTPUT.head())
 
 
         ### Final Output ped file.
-        if _type == 'AA':
-            df_OUTPUT.to_csv(_out + '.AA.ped', sep='\t', header=False, index=True)
-        elif _type == 'SNPS':
-            df_OUTPUT.to_csv(_out + '.SNPS.ped', sep='\t', header=False, index=True)
+
+        if not _return_as_dataframe:
+
+            if _type == 'AA':
+                df_OUTPUT.to_csv(_out + '.AA.ped', sep='\t', header=False, index=True)
+                return _out+".AA.ped"
+
+            elif _type == 'SNPS':
+                df_OUTPUT.to_csv(_out + '.SNPS.ped', sep='\t', header=False, index=True)
+                return _out+".SNPS.ped"
+
+        else:
+            return df_OUTPUT
 
 
-    return 0
-
-def BringSequence(_single_allele, _dict):
-
-    try:
-        Seq = _dict.loc[_single_allele, "Seqs"]
-    except KeyError:
-        Seq = "0"
-
-    return Seq
 
 
+def BringSequence(_single_allele, _hla, _dict):
+
+    # try:
+    #     Seq = _dict.loc[_single_allele, "Seqs"]
+    # except KeyError:
+    #     Seq = "0"
+    #
+    # return Seq
+
+    df_temp = _dict.filter(regex=re.escape(_single_allele), axis=0)
+
+    if df_temp.shape[0] > 0:
+        Seq = df_temp.iat[0, 0] if not isREVERSE[_hla] else df_temp.iat[0, 0][::-1]
+        Ins = df_temp.iat[0, 1]
+
+        return (Seq + Ins)
+    else:
+        return "0"
+
+
+def NomenCleaner_forOld(_single_allele, _hla, _sr_alleles):
+
+
+    if len(_single_allele) == 2 or len(_single_allele) == 3:
+        return ':'.join([_hla, _single_allele])
+
+
+    if len(_single_allele) == 4:
+
+        p = re.compile('\:'.join([_hla, _single_allele[0:2], _single_allele[2:4]]))
+        flag = _sr_alleles.str.match(p)
+
+        if flag.any():
+            return ':'.join([_hla, _single_allele[0:2], _single_allele[2:4]])
+        else:
+            return "0"
+
+
+    elif len(_single_allele) == 5:
+
+        p_tag = re.compile(r'.+[A-Z]$')
+        hasTag = p_tag.match(_single_allele)
+
+        if hasTag:
+            t_name = _single_allele[:-1]
+            t_name_tag = _single_allele[-1]
+
+            return ':'.join([_hla, t_name[0:2], t_name[2:4]]) + t_name_tag
+
+        else:
+            p_2_3 = re.compile('\:'.join([_hla, _single_allele[0:2], _single_allele[2:5]]))
+            p_3_2 = re.compile('\:'.join([_hla, _single_allele[0:3], _single_allele[3:5]]))
+
+            flag_2_3 = _sr_alleles.str.match(p_2_3)
+            flag_3_2 = _sr_alleles.str.match(p_3_2)
+
+            if flag_2_3.any():
+                return ':'.join([_hla, _single_allele[0:2], _single_allele[2:5]])
+            elif flag_3_2.any():
+                return ':'.join([_hla, _single_allele[0:3], _single_allele[3:5]])
+            else:
+                return "0"
+
+    # elif len(_single_allele) == 6:
+    #     p_3_3 = re.compile('\:'.join([_hla, _single_allele[0:3], _single_allele[3:6]]) + "[A-Z]?$")
+    #     flag_3_3 = _sr_alleles.str.match(p_3_3)
+    #
+    #     if flag_3_3.any():
+    #         return p_3_3
+    #     else:
+    #         return "-1"
+
+    else:
+        return "0"
 
 
 
@@ -232,7 +302,7 @@ if __name__ == '__main__':
 
     parser.add_argument("-h", "--help", help="\nShow this help message and exit\n\n", action='help')
 
-    parser.add_argument("-ped", help="\nHLA Type Data(Standard 4-field allele \"*.ped\" file).\n\n", required=True)
+    parser.add_argument("-hped", help="\nHLA Type Data(Standard 4-field allele \"*.ped\" file).\n\n", required=True)
     parser.add_argument("-dict", help="\nHLA dictonary file name(ex. 'HLA_DICTIONARY_AA.txt')\n\n", required=True)
     parser.add_argument("-type", help="\nAA(for Amino Acid) or SNP(for SNPs)\n\n", choices=["AA", "SNPS"], required=True)
     parser.add_argument("-o", help="\nOutput file prefix.\n\n", required=True)
