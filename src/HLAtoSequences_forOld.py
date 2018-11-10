@@ -65,21 +65,18 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
         ########## <1. Dictionary Preparation> ##########
 
-        print("\n[1] Loading \"Old\" Dictionary Data(created by Sherman Jia.\n")
+        # print("\n[1] Loading \"Old\" Dictionary Data(created by Sherman Jia.")
+
         HLA_DICTIONARY = pd.read_table(_dictionary_seq, sep='\t', header=None, names=["Alleles", "Seqs", "INS"], index_col=0).fillna("")
 
         # Dividing `HLA_DICTIONARY` in advance.
         HLA_DICTIONARY2 = {HLA_names[i]: HLA_DICTIONARY.filter(regex= ''.join(["^", HLA_names[i], "\:"]), axis=0) for i in range(0, len(HLA_names))}
 
-        for i in range(0, len(HLA_names)):
-            print("\nSequence Information of %s" % HLA_names[i])
-            print(HLA_DICTIONARY2[HLA_names[i]].head())
+        # for i in range(0, len(HLA_names)):
+        #     print("\nSequence Information of %s" % HLA_names[i])
+        #     print(HLA_DICTIONARY2[HLA_names[i]].head())
 
         ALLELES_SEQ_LENGTH = {HLA_names[i] : (len(HLA_DICTIONARY2[HLA_names[i]].iat[0, 0]) + len(HLA_DICTIONARY2[HLA_names[i]].iat[0, 1])) for i in range(0, len(HLA_names))}
-
-        # for i in range(0, len(HLA_names)):
-        #     print("\nSequence Length of %s" % HLA_names[i])
-        #     print(ALLELES_SEQ_LENGTH[HLA_names[i]])
 
 
 
@@ -87,12 +84,12 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
         ########## <2. Loading Coated PED(Input PED) file> ##########
 
-        print("\n[2] Loading Input PED file.")
+        # print("\n[2] Loading Input PED file.")
 
         HPED = pd.read_table(_hped, sep='\t', header=None, index_col=[0, 1, 2, 3, 4, 5], dtype=str)
         HPED.columns = pd.Index([name + '_' + str(j + 1) for name in HLA_names for j in range(0, 2)])
 
-        print(HPED.head())
+        # print(HPED.head())
 
 
 
@@ -100,13 +97,13 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
         ########## <2. Loading Coated PED(Input PED) file> ##########
 
-        print("\n[3] Cleaning HLA allele names.")
+        # print("\n[3] Cleaning HLA allele names.")
 
         CHPED = pd.concat([HPED.filter(regex='_'.join([HLA_names[i], '\d{1}']), axis=1).applymap(lambda x : NomenCleaner_forOld(x, HLA_names[i], HLA_DICTIONARY2[HLA_names[i]].index.to_series()) if x != "0" else x) for i in range(0, len(HLA_names))], axis=1)
-        print(CHPED.head())
+        # print(CHPED.head())
 
         # Exporting
-        CHPED.to_csv(_out+".chped", sep='\t', header=False, index=True)
+        # CHPED.to_csv(_out+".chped", sep='\t', header=False, index=True)
 
 
 
@@ -114,19 +111,19 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
         ########## <3. Bringing Sequences> ##########
 
-        print("\n[4]: Transforming Allele names to Sequences.")
+        # print("\n[4]: Transforming Allele names to Sequences.")
 
         l_FOR_OUTPUT = []
 
-        for i in range(0, len(HLA_names)):
+        for i in range(0, len(HLA_names2)):
 
             ### Bringing Sequences
 
-            curr_dict = HLA_DICTIONARY2[HLA_names[i]]
+            curr_dict = HLA_DICTIONARY2[HLA_names2[i]]
 
             # HLA columns(each 2 columns)
-            df_temp = CHPED.filter(regex='_'.join([HLA_names[i], '\d{1}']), axis=1).applymap(lambda x : BringSequence(x, HLA_names[i], curr_dict) if (x != "0" or x != "-1") else x)
-            print(df_temp.head())
+            df_temp = CHPED.filter(regex='_'.join([HLA_names2[i], '\d{1}']), axis=1).applymap(lambda x : BringSequence(x, HLA_names2[i], curr_dict) if x != "0" else x)
+            # print(df_temp.head())
 
 
 
@@ -138,7 +135,7 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
                 if df_temp.iat[j, 0] != '0' and df_temp.iat[j, 1] != '0':
 
-                    # (Case1) Most normal case - wehn allele_name is found as pair.
+                    # (Case1) Most normal case - when allele_name is found as pair.
 
                     # seq1 = df_temp.iat[j, 0] if not isREVERSE[HLA_name[i]] else df_temp.iat[j, 0][::-1]
                     # seq2 = df_temp.iat[j, 1] if not isREVERSE[HLA_name[i]] else df_temp.iat[j, 1][::-1]
@@ -153,7 +150,7 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
                     # (Case2) when not found as a pair of alleles, but as a only single allele, => 0 is given
                     # (0, 0) will be compensated as length of `HLA_seq`, Due to here, I need to prepared `len(HLA_seq)` beforehand.
 
-                    seq1 = ['0' for z in range(0, ALLELES_SEQ_LENGTH[HLA_names[i]])]
+                    seq1 = ['0' for z in range(0, ALLELES_SEQ_LENGTH[HLA_names2[i]])]
 
                     PAIRED = [value for item in zip(seq1, seq1) for value in item]
 
@@ -167,7 +164,7 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
         ########## <4. Exporting OUTPUT PED file> ##########
 
-        print("\n[4]: Exporting OUTPUT PED file.")
+        # print("\n[4]: Exporting OUTPUT PED file.")
 
         df_OUTPUT = pd.concat(l_FOR_OUTPUT, axis=1)
         df_OUTPUT.index = HPED.index
@@ -339,6 +336,6 @@ if __name__ == '__main__':
 
 
     # Implementing Main Function
-    HLAtoSequences(args.ped, args.dict, args.type, args.o)
+    HLAtoSequences(args.hped, args.dict, args.type, args.o)
 
 
