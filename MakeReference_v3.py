@@ -1,10 +1,12 @@
 #-*- coding: utf-8 -*-
 
-import os, sys, logging,re
+import os, sys, re
 import argparse, textwrap
+
 from src.HLAtoSequences_forOld import HLAtoSequences
 from src.encodeHLA_forOld import encodeHLA
 from src.encodeVariants_forOld import encodeVariants
+import src.ImplementPlink_bash as Plink
 
 
 ########## < Core Global Variables > ##########
@@ -56,6 +58,9 @@ def MakeReference_v3(**kwargs):
     _p_linkage2beagle = kwargs["_p_linkage2beagle"] if kwargs["_p_linkage2beagle"] else "dependency/linkage2beagle.jar"
 
 
+    ### HLA type data.
+    _hped = kwargs["_hped"]
+
 
     ### Dictionary files
     _dictionary_AA_seq = kwargs["_dict_AA"] + ".txt" # From now on, official extension of HLA sequence information dictionary is ".txt". (2018. 9. 25.)
@@ -89,6 +94,10 @@ def MakeReference_v3(**kwargs):
         sys.exit()
 
 
+    # HLA type data
+    if not os.path.exists(_hped):
+        print(std_ERROR_MAIN_PROCESS_NAME + "HLA type data can't be found. Please check it again(\"{0}\").\n".format(_hped))
+
     # dictionaries
     if not os.path.exists(_dictionary_AA_seq):
         print(std_ERROR_MAIN_PROCESS_NAME + "HLA AA sequence file not found. Please check it again(\"{0}\").\n".format(_dictionary_AA_seq))
@@ -115,11 +124,17 @@ def MakeReference_v3(**kwargs):
 
     ### [1] ENCODE_AA
 
+    __HLA_AA__ = b_MARKER_HLA(_type="AA", _hped=_hped, _dict=kwargs["_dict_AA"], _out=_out)
+
 
     ### [2] ENCODE_HLA
 
+    # __HLA__ = b_MARKER_HLA(_type="HLA", _out=_out)
+
 
     ### [3] ENCODE_SNPS
+
+    # __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _dict=kwargs["_dict_SNPS"], _out=_out)
 
 
     ### [4] EXTRACT_FOUNDERS
@@ -151,12 +166,41 @@ def MakeReference_v3(**kwargs):
 
 def b_MARKER_HLA(**kwargs):
 
+    """
+    - _type (AA, SNPS, HLA)
+    - _dictionary_seq (AA, SNPS)
+    - _dictionary_map (AA, SNPS)
+    - _out
+
+    """
+
     if "_type" not in kwargs.keys():
         print(std_ERROR_MAIN_PROCESS_NAME + "\"_type\" argument must be passed.\n")
         return -1
     else:
-        _type = kwargs["_type"] if kwargs["_type"] == "AA" or kwargs["_type"] == "SNPS" or kwargs["_type"] == "HLA" else None
+        TYPE = kwargs["_type"] if kwargs["_type"] == "AA" or kwargs["_type"] == "SNPS" or kwargs["_type"] == "HLA" else None
 
+
+
+    if TYPE == "AA" or TYPE == "SNPS":
+
+        # Passed arguments
+        HPED = kwargs["_hped"]
+        OUT = kwargs["_out"]
+        _dictionary_seq = kwargs["_dict"] + ".txt"
+        _dictionary_map = kwargs["_dict"] + ".map"
+
+
+        df_ped = HLAtoSequences(_hped=HPED, _dictionary_seq=_dictionary_seq, _type=TYPE, _out=OUT, _return_as_dataframe=True)
+        # df_ped = HLAtoSequences(_hped=HPED, _dictionary_seq=_dictionary_seq, _type=TYPE, _out=OUT)
+
+        __ENCODED_bMARKERS__ = encodeVariants(_p_ped=df_ped, _p_map=_dictionary_map, _out=OUT+".ENCODED")
+
+
+        # Plink : --missing-genotype
+        # Plink : --exclude
+
+        # Clean-up
 
 
 

@@ -3,12 +3,16 @@ import os
 import pandas as pd
 import argparse, textwrap
 
+
+########## < Core Global Variables > ##########
+
+std_MAIN_PROCESS_NAME = "\n[%s]: " % (os.path.basename(__file__))
+std_ERROR_MAIN_PROCESS_NAME = "\n[%s::ERROR]: " % (os.path.basename(__file__))
+std_WARNING_MAIN_PROCESS_NAME = "\n[%s::WARNING]: " % (os.path.basename(__file__))
+
+
+
 def encodeVariants(_p_ped, _p_map, _out):
-
-
-    # Module Name for stdout
-    std_MAIN_PROCESS_NAME = "\n[%s]: " % (os.path.basename(__file__))
-    print(std_MAIN_PROCESS_NAME + "Init.")
 
 
     ########## < Control Flags > ##########
@@ -17,18 +21,17 @@ def encodeVariants(_p_ped, _p_map, _out):
     _2_ALLELE_OVERLAPPING = 1
     _3_MAKING_NEW_PEDFILE = 1
     _4_MAKING_NEW_MAPFILE = 1
-    _5_ADDING_DUMMY_MARKER = 1
+    _5_ADDING_DUMMY_MARKER = 0
 
 
     if _1_LOADING_MAPFILE:
 
         ########## < 1. Loading MAP file > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[1] Loading MAP file.\n")
+        # print(std_MAIN_PROCESS_NAME + "[1] Loading MAP file.\n")
 
-        # Processing map file
         df_mapfile = pd.read_table(_p_map, sep='\t', header=None, dtype=str)
-        print(df_mapfile.head())
+        # print(df_mapfile.head())
 
 
 
@@ -36,19 +39,19 @@ def encodeVariants(_p_ped, _p_map, _out):
 
         ########## < 2. Allele overlapping > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[2] Allele Overlapping.\n")
+        # print(std_MAIN_PROCESS_NAME + "[2] Allele Overlapping.\n")
 
-        df_pedfile = pd.read_table(_p_ped, sep='\t', header=None, dtype=str, index_col=[0,1,2,3,4,5])
-        print(df_pedfile.head())
+        if isinstance(_p_ped, pd.DataFrame):
+            df_pedfile = _p_ped
+        else:
+            df_pedfile = pd.read_table(_p_ped, sep='\t', header=None, dtype=str, index_col=[0,1,2,3,4,5])
+
+        # print(df_pedfile.head())
 
         flattened = df_pedfile.apply(set, axis=0)
-        print(flattened)
-
-        # alleles = [tuple(flattened.iat[i].union(flattened.iat[i+1]).difference({0, "0"})) for i in range(0, flattened.shape[0], 2)]
-        # print(alleles)
+        # print(flattened)
 
         # (2018. 9. 1.)
-
         alleles = []
 
         for i in range(0, flattened.shape[0], 2):
@@ -63,7 +66,6 @@ def encodeVariants(_p_ped, _p_map, _out):
         sr_alleles.to_csv(_out+".alleleset", sep='\t', header=False, index=True)
 
         # Now, `alleles`(list of list) will be used to generate new .ped file.
-        print("Making Alleles list is done!")
 
 
 
@@ -71,10 +73,7 @@ def encodeVariants(_p_ped, _p_map, _out):
 
         ########## < 3. Making new .ped file > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[3] Making new .ped file.\n")
-
-        # each lines will be converted to lists,
-        # and these lists will be gathered to make list of lists. Finally this list of lists will be DataFrame.
+        # print(std_MAIN_PROCESS_NAME + "[3] Making new .ped file.\n")
 
         to_DataFrame = []
 
@@ -83,10 +82,8 @@ def encodeVariants(_p_ped, _p_map, _out):
 
             curr_line = list(df_pedfile.iloc[N_pedline, :])
 
-            # ID = curr_line[0:6]
             Seq = []
 
-            # for i in range(6, len(curr_line), 2):
             for i in range(0, df_pedfile.shape[1], 2):
 
                 # (SNP1, SNP2) : (0,1) -> (2,3) -> (4, 5) -> ...
@@ -108,14 +105,14 @@ def encodeVariants(_p_ped, _p_map, _out):
                         else:
 
                             if alleles[idx_alleles][j] == SNP1:
-                                Seq.append("p")
+                                Seq.append("P")
                             else:
-                                Seq.append("a")
+                                Seq.append("A")
 
                             if alleles[idx_alleles][j] == SNP2:
-                                Seq.append("p")
+                                Seq.append("P")
                             else:
-                                Seq.append("a")
+                                Seq.append("A")
 
 
                     if len(alleles[idx_alleles]) > 3:
@@ -131,14 +128,14 @@ def encodeVariants(_p_ped, _p_map, _out):
 
                                 else:
                                     if alleles[idx_alleles][j] == SNP1 or alleles[idx_alleles][k] == SNP1:
-                                        Seq.append("p")
+                                        Seq.append("P")
                                     else:
-                                        Seq.append("a")
+                                        Seq.append("A")
 
                                     if alleles[idx_alleles][j] == SNP2 or alleles[idx_alleles][k] == SNP2:
-                                        Seq.append("p")
+                                        Seq.append("P")
                                     else:
-                                        Seq.append("a")
+                                        Seq.append("A")
 
 
                         if len(alleles[idx_alleles]) > 5:
@@ -154,14 +151,14 @@ def encodeVariants(_p_ped, _p_map, _out):
 
                                         else:
                                             if alleles[idx_alleles][j] == SNP1 or alleles[idx_alleles][k] == SNP1 or alleles[idx_alleles][l] == SNP1:
-                                                Seq.append("p")
+                                                Seq.append("P")
                                             else:
-                                                Seq.append("a")
+                                                Seq.append("A")
 
                                             if alleles[idx_alleles][j] == SNP2 or alleles[idx_alleles][k] == SNP2 or alleles[idx_alleles][l] == SNP2:
-                                                Seq.append("p")
+                                                Seq.append("P")
                                             else:
-                                                Seq.append("a")
+                                                Seq.append("A")
 
 
 
@@ -178,9 +175,7 @@ def encodeVariants(_p_ped, _p_map, _out):
             # End-point of one line of .ped file.
 
         df_output_pedfile = pd.DataFrame(to_DataFrame, index=df_pedfile.index)
-        # df_output_pedfile.to_csv(_out + '.ped', sep='\t', header=False, index=True)
-
-        print("Making .ped file is done")
+        df_output_pedfile.to_csv(_out + '.ped', sep='\t', header=False, index=True)
 
 
 
@@ -188,18 +183,11 @@ def encodeVariants(_p_ped, _p_map, _out):
 
         ########## < 4. Making new .map file > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[4] Making new .map file.\n")
+        # print(std_MAIN_PROCESS_NAME + "[4] Making new .map file.\n")
 
         to_DataFrame = []
 
-        # print(len(alleles))
-        # print(len(df_mapfile.index))
-        # len(alleles) == len(df_mapfile.index)
-
         for i in range(0, len(alleles)):
-
-            # print(alleles[i])
-            # print(list(df_mapfile.iloc[i, :]))
 
             curr_line = tuple(df_mapfile.iloc[i, :])
             # [0]: 6, [1]: 'AA_A_9_30126516', [2]: 0, [3]: 30126516
@@ -209,28 +197,18 @@ def encodeVariants(_p_ped, _p_map, _out):
                 # multi_alleles_1,2,3 => These are all list of lists
 
                 multi_alleles_1 = [(curr_line[0], curr_line[1]+'_'+alleles[i][j], curr_line[2], curr_line[3]) for j in range(0, len(alleles[i]))]
-                # to_DataFrame += multi_alleles_1
                 to_DataFrame.extend(multi_alleles_1)
 
                 if len(alleles[i]) > 3:
 
                     j_end = 1 if len(alleles[i]) == 4 else len(alleles[i])
 
-                    # for j in range(0, j_end):
-                    #     for k in range(j+1, len(alleles[i])):
-                    #         print([curr_line[0], curr_line[1]+ '_' + alleles[i][j]+alleles[i][k], curr_line[2], curr_line[3]])
-
                     multi_alleles_2 = [(curr_line[0], curr_line[1]+ '_' + alleles[i][j]+alleles[i][k], curr_line[2], curr_line[3]) for j in range(0, j_end) for k in range(j+1, len(alleles[i]))]
-                    # to_DataFrame += multi_alleles_2
                     to_DataFrame.extend(multi_alleles_2)
 
                     if len(alleles[i]) > 5:
 
                         j_end = 1 if len(alleles[i]) == 6 else len(alleles[i])
-
-                        # for j in range(0, j_end):
-                        #     for k in range(j+1, len(alleles[i])):
-                        #         for l in range(k+1, len(alleles[i])):
 
                         multi_alleles_3 = [(curr_line[0], curr_line[1]+ '_' + alleles[i][j]+alleles[i][k]+alleles[i][l], curr_line[2], curr_line[3]) for j in range(0, j_end) for k in range(j+1, len(alleles[i])) for l in range(k+1, len(alleles[i]))]
                         # to_DataFrame += multi_alleles_3
@@ -243,12 +221,9 @@ def encodeVariants(_p_ped, _p_map, _out):
                 to_DataFrame.extend([curr_line])
 
         df_output_mapfile = pd.DataFrame(to_DataFrame)
-        # df_output_mapfile.to_csv(_out + '.map', sep='\t', header=False, index=False)
+        df_output_mapfile.to_csv(_out + '.map', sep='\t', header=False, index=False)
 
         # print(df_output_mapfile.head())
-
-        print("Making new .map file is done!")
-
 
 
 
@@ -269,6 +244,9 @@ def encodeVariants(_p_ped, _p_map, _out):
         df_OUTPUT_ped.to_csv(_out + '.ped', sep='\t', header=False, index=True)
         df_OUTPUT_map.to_csv(_out + '.map', sep='\t', header=False, index=False)
 
+
+
+    return _out
 
 
 
