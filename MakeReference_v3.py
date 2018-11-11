@@ -2,6 +2,7 @@
 
 import os, sys, re
 import argparse, textwrap
+import pandas as pd
 
 from src.HLAtoSequences_forOld import HLAtoSequences
 from src.encodeHLA_forOld import encodeHLA
@@ -134,7 +135,7 @@ def MakeReference_v3(**kwargs):
 
     ### [3] ENCODE_SNPS
 
-    # __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _dict=kwargs["_dict_SNPS"], _out=_out)
+    __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _hped=_hped, _dict=kwargs["_dict_SNPS"], _out=_out)
 
 
     ### [4] EXTRACT_FOUNDERS
@@ -194,18 +195,55 @@ def b_MARKER_HLA(**kwargs):
         df_ped = HLAtoSequences(_hped=HPED, _dictionary_seq=_dictionary_seq, _type=TYPE, _out=OUT, _return_as_dataframe=True)
         # df_ped = HLAtoSequences(_hped=HPED, _dictionary_seq=_dictionary_seq, _type=TYPE, _out=OUT)
 
-        __ENCODED_bMARKERS__ = encodeVariants(_p_ped=df_ped, _p_map=_dictionary_map, _out=OUT+".ENCODED")
+        __ENCODED_1__ = encodeVariants(_p_ped=df_ped, _p_map=_dictionary_map, _out=OUT+".{0}.ENCODED".format(TYPE))
 
 
         # Plink : --missing-genotype
+        __ENCODED_2__ = Plink.make_bed(_file=__ENCODED_1__, _out=OUT+".{0}.RAW".format(TYPE), _missing_genotype=0)
+        print(__ENCODED_2__)
+
+
         # Plink : --exclude
+        df_temp = pd.read_table(__ENCODED_2__+".bim", sep='\t|\s+', engine='python', header=None, dtype=str)
+        print(df_temp.head())
+
+        flag_5_0 = (df_temp.iloc[:, 4] == '0')
+        flag_5_x = (df_temp.iloc[:, 4] == 'x')
+        flag_6_x = (df_temp.iloc[:, 5] == 'x')
+        flag_INS = (df_temp.iloc[:, 1].str.match(r'^INS'))
+
+        flag_union = (flag_5_0 | flag_5_x | flag_6_x) & ~flag_INS
+
+        df_temp2 = df_temp.loc[flag_union, :].iloc[:, 1]
+        df_temp2.to_csv(OUT+".{0}.noPolymorphic.txt".format(TYPE), sep='\t', header=False, index=False)
+
+
+        __ENCODED_3__ = Plink.make_bed(_bfile=__ENCODED_2__, _out=OUT+".{0}.CODED".format(TYPE), _exclude=OUT+".{0}.noPolymorphic.txt".format(TYPE))
+        print(__ENCODED_3__)
+
 
         # Clean-up
+        rm_pattern = ["*.ENCODED.*", "*.RAW.*", "*.noPolymorphic.*"]
+        rm_list = [os.path.join(os.path.dirname(OUT), rm_pattern[i]) for i in range(0, len(rm_pattern))]
+
+        command = ' '.join(["rm", ' '.join(rm_list)])
+        print(command)
+        os.system(command)
+
+
+        return __ENCODED_3__
 
 
 
+    elif TYPE == "HLA":
 
-    return 0
+        
+
+        return 0
+
+    else:
+        print(std_ERROR_MAIN_PROCESS_NAME + "Something wrong with \"_type\" argument of b_MARKER_HLA.")
+        return -1
 
 
 
