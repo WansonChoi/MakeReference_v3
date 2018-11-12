@@ -4,6 +4,7 @@ import os, sys, re
 import argparse, textwrap
 import pandas as pd
 from numpy import concatenate
+from shutil import which
 
 from src.HLAtoSequences_forOld import HLAtoSequences
 from src.encodeHLA_forOld import encodeHLA
@@ -30,7 +31,7 @@ def MakeReference_v3(**kwargs):
     _arguments = ["_hped", "_input", "_out", "_dict_AA", "_dict_SNPS"]
 
     # optional arguments
-    _arguments2 = ["_p_plink", "_p_beagle", "_p_linkage2beagle"]
+    _arguments2 = ["_p_plink", "_p_JAVA", "_p_beagle", "_p_linkage2beagle"]
 
 
     # Checking indispensable arguments.
@@ -56,6 +57,7 @@ def MakeReference_v3(**kwargs):
 
     ### Path variables.
     _p_plink = kwargs["_p_plink"] if kwargs["_p_plink"] else "dependency/plink"
+    _p_JAVA =  kwargs["_p_JAVA"] if kwargs["_p_JAVA"] else which("java")
     _p_beagle = kwargs["_p_beagle"] if kwargs["_p_beagle"] else "dependency/beagle.jar"
     _p_linkage2beagle = kwargs["_p_linkage2beagle"] if kwargs["_p_linkage2beagle"] else "dependency/linkage2beagle.jar"
 
@@ -270,24 +272,32 @@ def MakeReference_v3(**kwargs):
 
 
 
-    # ##### [7] PREPARE
-    # print(std_MAIN_PROCESS_NAME + "[7] Preparing Beagle files.\n")
-    # 
-    # df_markers = pd.read_table(__HLA_MERGED_output__+".bim", sep='\t|\s+', engine='python', header=0, dtype=str).iloc[:, [1, 3, 4, 5]]
-    # df_markers.to_csv(_out+".markers", sep='\t', header=False, index=False)
-    #
-    # # final output in .ped/.map format.
-    # __HLA_MERGED_output_2__ = Plink.recode(_bfile=__HLA_MERGED_output__, _out=_out,
-    #                                        _keep_allele_order=True, _alleleACGT=True)
-    #
-    # df_dat = pd.read_table(__HLA_MERGED_output_2__+".map", sep='\t|\s+', engine='python', header=0, dtype=str, usecols=[1])
-    # df_dat.index = pd.Index(["M" for i in range(0, df_dat.shape[0])])
-    # df_dat.to_csv(_out+".dat", sep='\t', header=False, index=True)
-    #
-    # df_nopheno = pd.read_table(__HLA_MERGED_output_2__+".ped", sep='\t|\s+', engine='python', header=0, dtype=str).drop(5, axis=1)
-    # df_nopheno.to_csv(_out+".nopheno.ped", sep='\t', header=False, index=False)
-    #
-    #
+    ##### [7] PREPARE
+    print(std_MAIN_PROCESS_NAME + "[7] Preparing Beagle files.\n")
+
+    df_markers = pd.read_table(__HLA_MERGED_output__+".bim", sep='\t|\s+', engine='python', header=0, dtype=str).iloc[:, [1, 3, 4, 5]]
+    df_markers.to_csv(_out+".markers", sep='\t', header=False, index=False)
+
+    # final output in .ped/.map format.
+    __HLA_MERGED_output_2__ = Plink.recode(_bfile=__HLA_MERGED_output__, _out=_out,
+                                           _keep_allele_order=True, _alleleACGT=True)
+
+    df_dat = pd.read_table(__HLA_MERGED_output_2__+".map", sep='\t|\s+', engine='python', header=None, dtype=str, usecols=[1])
+    df_dat.index = pd.Index(["M" for i in range(0, df_dat.shape[0])])
+    df_dat.to_csv(_out+".dat", sep='\t', header=False, index=True)
+
+    df_nopheno = pd.read_table(__HLA_MERGED_output_2__+".ped", sep='\t|\s+', engine='python', header=None, dtype=str).drop(5, axis=1)
+    df_nopheno.to_csv(_out+".nopheno.ped", sep='\t', header=False, index=False)
+
+    # linkage2beagle
+    command = ' '.join([_p_JAVA, "-Xmx500m", "-jar", _p_linkage2beagle, "pedigree={0}".format(_out+".nopheno.ped"), "data={0}".format(_out+".dat"),
+                        "beagle={0}".format(_out+".bgl"), "standard=true", ">", "{0}".format(_out+".bgl.log")])
+    print(command)
+
+    if bool(os.system(command)):
+        print(std_ERROR_MAIN_PROCESS_NAME + "Failed to implement linkage2beagle.jar\n")
+        sys.exit()
+
 
 
     ##### [8] PHASE
