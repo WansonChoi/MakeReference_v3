@@ -125,17 +125,17 @@ def MakeReference_v3(**kwargs):
 
     ### [1] ENCODE_AA
 
-    __HLA_AA__ = b_MARKER_HLA(_type="AA", _hped=_hped, _dict=kwargs["_dict_AA"], _out=_out)
+    # __HLA_AA__ = b_MARKER_HLA(_type="AA", _hped=_hped, _dict=kwargs["_dict_AA"], _out=_out)
 
 
     ### [2] ENCODE_HLA
 
-    # __HLA__ = b_MARKER_HLA(_type="HLA", _out=_out)
+    __HLA__ = b_MARKER_HLA(_type="HLA", _hped=_hped, _out=_out)
 
 
     ### [3] ENCODE_SNPS
 
-    __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _hped=_hped, _dict=kwargs["_dict_SNPS"], _out=_out)
+    # __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _hped=_hped, _dict=kwargs["_dict_SNPS"], _out=_out)
 
 
     ### [4] EXTRACT_FOUNDERS
@@ -237,9 +237,14 @@ def b_MARKER_HLA(**kwargs):
 
     elif TYPE == "HLA":
 
-        
+        # Passed arguments
+        HPED = kwargs["_hped"]
+        OUT = kwargs["_out"]
 
-        return 0
+        __ENCODED_1__ = encodeHLA(HPED, OUT+".HLA")
+        __ENCODED_2__ = Plink.make_bed(_file=__ENCODED_1__, _out=OUT+".HLA")
+
+        return __ENCODED_2__
 
     else:
         print(std_ERROR_MAIN_PROCESS_NAME + "Something wrong with \"_type\" argument of b_MARKER_HLA.")
