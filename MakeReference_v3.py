@@ -130,25 +130,26 @@ def MakeReference_v3(**kwargs):
 
     ########## < Main > ##########
 
-    ### [1] ENCODE_AA
+    ##### [1] ENCODE_AA
 
     __HLA_AA__ = b_MARKER_HLA(_type="AA", _hped=_hped, _dict=kwargs["_dict_AA"], _out=_out)
 
 
 
-    ### [2] ENCODE_HLA
+    ##### [2] ENCODE_HLA
+    print(std_MAIN_PROCESS_NAME + "[2] Generating amino acid sequences from HLA types.\n")
 
     __HLA__ = b_MARKER_HLA(_type="HLA", _hped=_hped, _out=_out)
 
 
 
-    ### [3] ENCODE_SNPS
+    ##### [3] ENCODE_SNPS
 
     __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _hped=_hped, _dict=kwargs["_dict_SNPS"], _out=_out)
 
 
 
-    ### [4] EXTRACT_FOUNDERS
+    ##### [4] EXTRACT_FOUNDERS
 
     # Filtering for traditional SNP markers.("--input")
 
@@ -212,19 +213,32 @@ def MakeReference_v3(**kwargs):
 
 
 
-    ### [5] MERGE
+    ##### [5] MERGE
+
+    bed_suffix = (".bed", ".bim", ".fam")
+    l_temp = (__HLA_AA_FOUNDERS__, __HLA_SNPS_FOUNDERS__, __HLA_HLA_FOUNDERS__)
+
+    target_merge = [[item+suffix for suffix in bed_suffix] for item in l_temp]
+    print(target_merge)
+    pd.DataFrame(target_merge).to_csv(_out+".mergelist.txt", sep='\t', header=False, index=False)
 
 
-    ### [6] QC
+    __MERGED_HLA__ = Plink.make_bed(_bfile=__SNP_FOUNDERS_2__, _out=(_out+"."+_SNPs_basename+".MERGED.FOUNDERS"),
+                                    _merge_list = _out+".mergelist.txt")
+    print(__MERGED_HLA__)
 
 
-    ### [7] PREPARE
+
+    ##### [6] QC
 
 
-    ### [8] PHASE
+    ##### [7] PREPARE
 
 
-    ### [9] CLEANUP
+    ##### [8] PHASE
+
+
+    ##### [9] CLEANUP
 
 
 
