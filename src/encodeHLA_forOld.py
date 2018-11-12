@@ -4,23 +4,31 @@ import argparse, textwrap
 from collections import OrderedDict
 
 
+########## < Core Global Variables > ##########
+
+std_MAIN_PROCESS_NAME = "\n[%s]: " % (os.path.basename(__file__))
+std_ERROR_MAIN_PROCESS_NAME = "\n[%s::ERROR]: " % (os.path.basename(__file__))
+std_WARNING_MAIN_PROCESS_NAME = "\n[%s::WARNING]: " % (os.path.basename(__file__))
+
+HLA_names = ["A", "B", "C", "DPA1", "DPB1", "DQA1", "DQB1", "DRB1"]
+HLA_names2 = ["A", "C", "B", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
+idx_HLA_names2 = [0,2,1,7,5,6,3,4]
+
+# [0,1,2,3,4,5,6,7]
+# [0,2,1,7,5,6,3,4]
+isREVERSE = {'A': False, 'C': True, 'B': True, 'DRB1': True, 'DQA1': False, 'DQB1': True, 'DPA1': True, 'DPB1': False}
+
+
+
 def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
 
     ########## <Core Variables> ##########
 
-    HLA_names = ["A", "B", "C", "DPA1", "DPB1", "DQA1", "DQB1", "DRB1"]
-
-    # isREVERSE = {'A': False, 'C': True, 'B': True, 'DRB1': True, 'DQA1': False, 'DQB1': True, 'DPA1': True, 'DPB1': False}
-
     # (2018. 9. 25.) Replaced by lift-over values.
     genepos_hg ={"18" : {"A": 30018226, "C": 31344505, "B": 31429628, "DRB1": 32654525, "DQA1": 32713161, "DQB1": 32735219, "DPA1": 33140324, "DPB1": 33151681},
                  "19" : {"A": 29910247, "C": 31236526, "B": 31321649, "DRB1": 32546547, "DQA1": 32605183, "DQB1": 32627241, "DPA1": 33032346, "DPB1": 33043703},
                  "38" : {"A": 29942470, "C": 31268749, "B": 31353872, "DRB1": 32578770, "DQA1": 32637406, "DQB1": 32659464, "DPA1": 33064569, "DPB1": 33075926}}
-
-    # Module Name for stdout
-    std_MAIN_PROCESS_NAME = "\n[%s]: " % (os.path.basename(__file__))
-    print(std_MAIN_PROCESS_NAME + "Init.")
 
 
     # Set of allele names ocurring in each HLA columns of given ped file.
@@ -44,7 +52,7 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
     MAKING_ALLELE_TABLE = 1
     MAKING_OUTPUT_MAP = 1
     MAKING_OUTPUT_PED = 1
-    ADDING_DUMMY_MARKER = 1
+    ADDING_DUMMY_MARKER = 0
 
 
 
@@ -54,14 +62,14 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
         ########## < 1. Loading Input PED file > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[1] Loading Input PED file.\n")
+        # print(std_MAIN_PROCESS_NAME + "[1] Loading Input PED file.\n")
 
         INPUT_PED = pd.read_table(_INPUT_PED, sep='\t', header=None, dtype=str,
                                   names = ['Fam_ID', 'Sample_ID', 'Paternal_ID', 'Maternal_ID', 'Sex', 'Phe'] + [''.join([HLA_names[i], '_', str(j)]) for i in range(0, len(HLA_names)) for j in range(1,3)],
                                   index_col=[0, 1, 2, 3, 4, 5]
                                   )
 
-        print(INPUT_PED.head())
+        # print(INPUT_PED.head())
 
 
 
@@ -69,7 +77,7 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
         ########## < 2. Making Allele Table > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[2] Making Allele Table.\n")
+        # print(std_MAIN_PROCESS_NAME + "[2] Making Allele Table.\n")
 
         """
         for i in range(0, len(INPUT_PED.index)):
@@ -106,26 +114,21 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
             
         """
 
-        # In the past, `ALLELE_TABLES` was created based on dictionary data structure, but now it is created by "apply()" function with "set()" function.
-
         for i in range(0, len(HLA_names)):
-            # for i in range(0, 1):
+        # for i in range(0, 1):
 
             temp = INPUT_PED.filter(regex=HLA_names[i]+'_\d', axis=1).apply(set, axis=0).apply(lambda x : x.difference({0, "0"}))
 
             # print(temp)
 
             # Column 1 and 2
-            set_al1 = temp.iat[0] # ex)     A_1 := {A*32:01:01, A*23:01:01, A*26:01:01, A*02:01:0...
-            set_al2 = temp.iat[1] # ex)     A_2 := {A*24:02:01:01, A*01:01:01:01, A*02:05:01, A*3...
-
-            # sr_Unioned_Set = pd.Series(list(set_al1.union(set_al2))).sort_values() # sorting
+            set_al1 = temp.iat[0]
+            set_al2 = temp.iat[1]
 
             l_Unioned_Set = list(set_al1.union(set_al2))
             l_Unioned_Set.sort() # sorting
 
-            # l_Unioned_Set = pd.Series(l_Unioned_Set)
-            print(l_Unioned_Set)
+            # print(l_Unioned_Set)
 
             ALLELE_TABLES[HLA_names[i]] = l_Unioned_Set
 
@@ -134,17 +137,15 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
             if len(l_Unioned_Set) > 0:
 
-                ### The case where the union of set of each two column has at least 1 element.
+                ### Unioned set(`l_Unioned_Set`) has at least 1 element.
 
-                sr_temp_1field = pd.Series(l_Unioned_Set).apply(lambda x : re.match(pattern='\*'.join([HLA_names[i], '\d{2,3}']), string=x).group()).unique() # Going through "unique()" function.
-
-                # print("\nsr_temp_1field\n")
+                sr_temp_1field = pd.Series(l_Unioned_Set).apply(lambda x : re.match(pattern=r'^\d{2}', string=x).group()).unique() # Going through "unique()" function.
                 # print(sr_temp_1field)
 
                 ALLELE_TABLES_1field[HLA_names[i]] = sr_temp_1field.tolist()
 
             else:
-                ### 집합 원소의 개수가 0 일때,(아예 input_ped에서 allele_name이 '0'으로 주어져서 없는 경우)
+                ### Zero element in Unioned set(`l_Unioned_Set`).
                 ALLELE_TABLES_1field[HLA_names[i]] = l_Unioned_Set
 
 
@@ -159,7 +160,7 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
         ########## < 3. Making OUTPUT .map file > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[3] Making OUTPUT .map file.\n")
+        # print(std_MAIN_PROCESS_NAME + "[3] Making OUTPUT .map file.\n")
 
         """        
         to_df_OUTPUT_map = []
@@ -191,54 +192,71 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
         ##### Making Label for *.map file. #####
 
-        # ALL_ALLELES = pd.concat([ALLELE_TABLES[HLA_names[i]].append(ALLELE_TABLES_1field[HLA_names[i]]) for i in range(0, len(HLA_names))]).sort_values()
+        ALL_ALLELES = []
+        dict_ALL_ALLELES = {}
 
-        ALL_ALLELES = ALLELE_TABLES[HLA_names[0]]
-        ALL_ALLELES.extend(ALLELE_TABLES_1field[HLA_names[0]])
-        # ALL_ALLELES = [ALLELE_TABLES[HLA_names[i]].append(ALLELE_TABLES_1field[HLA_names[i]]) for i in range(0, len(HLA_names))]
 
-        for i in range(1, len(HLA_names)):
-            ALL_ALLELES.extend(ALLELE_TABLES[HLA_names[i]])
-            ALL_ALLELES.extend(ALLELE_TABLES_1field[HLA_names[i]])
+        for i in range(0, len(HLA_names)):
+
+            l_temp = ALLELE_TABLES[HLA_names[i]]
+            l_temp.extend(ALLELE_TABLES_1field[HLA_names[i]])
+            l_temp = list(set(l_temp))
+            l_temp.sort()
+
+            """
+            ex) HLA_B_15 <= 
+            
+            15 given from HLA type and from 1-field processing(i.e. originated from 1501)
+            those duplicates are removed from above list(set(x)) operation.
+             
+            """
+
+            sr_temp = pd.Series(l_temp).apply(lambda x : '_'.join([HLA_names[i], x]))
+
+
+            ALL_ALLELES.extend(sr_temp.tolist())
+            dict_ALL_ALLELES[HLA_names[i]] = l_temp # both 4-digit and 2-digits
+
 
         ALL_ALLELES.sort()
+        # print(ALL_ALLELES)
+        # print(dict_ALL_ALLELES)
 
-        print("\nALL_ALLELES\n")
-        print(ALL_ALLELES)
 
-
-        ### HLA_index(Mining HLA gene name)
-        sr_HLA = pd.Series(ALL_ALLELES).apply(lambda x : re.search(pattern='\w+\*', string=x).group().rstrip('*'))
-        # print(sr_HLA)
+        ### HLA_name in `ALL_ALLELES`
+        sr_HLA = pd.Series(ALL_ALLELES).str.extract(r'^(\w+)_', expand=False)
+        # print(sr_HLA.head())
 
         ### map_LABELS & map_POS ###
         map_LABELS = pd.Series(['HLA_' + ALL_ALLELES[i] for i in range(0, len(ALL_ALLELES))])
-        # print("\n`map_LABELS`\n")
-        # print(map_LABELS)
+        # print(map_LABELS.head())
 
-        map_POS = [genepos_hg[_hg][sr_HLA.iat[i]] for i in range(0, len(sr_HLA))]
-        # print(map_POS)
+        map_POS = sr_HLA.apply(lambda x : genepos_hg[_hg][x])
+        # print(map_POS.head())
 
 
-        dict_ALL_ALLELES = {HLA_names[i] : [ALL_ALLELES[j] for j in range(0, len(ALL_ALLELES)) if (HLA_names[i]+'*' in ALL_ALLELES[j])] for i in range(0, len(HLA_names))}
-
-        # print("\nsegmented `ALL_ALLELES`\n")
         # for k,v in dict_ALL_ALLELES.items():
         #     print("\n============\n")
         #     print("{0} : \n{1}".format(k, v))
 
-
-        ##### map_Label을 제외한 나머지 map파일 항목 만들기 #####
 
         map_CHR = ['6' for i in range(0, len(map_LABELS))]
         map_GENETIC_DISTANCE = ['0' for i in range(0, len(map_LABELS))]
 
 
         df_OUTPUT_map = pd.DataFrame.from_dict({"Chr" : map_CHR, "Name" : map_LABELS.tolist(), "GD" : map_GENETIC_DISTANCE, "POS" : map_POS}).loc[:, ["Chr", "Name", "GD", "POS"]]
-        print(std_MAIN_PROCESS_NAME + "Output .map file.\n")
-        print(df_OUTPUT_map.head(50))
+        df_OUTPUT_map.index = pd.Index(sr_HLA)
 
-        # df_OUTPUT_map.to_csv('.'.join([_OUTPUT,'HLA.map']), sep='\t', header=False, index=False)
+        # Sort the part of `df_OUTPUT_map` due to compatibilty with old version of MakeReference.
+        df_OUTPUT_map2 = pd.concat([df_OUTPUT_map.filter(regex="^"+HLA_names2[i]+"$", axis=0) for i in range(0, len(HLA_names2))])
+        # print(df_OUTPUT_map2.head(50))
+
+
+        """
+        The Labels of the output map file(`df_OUTPUT_map`) must be in A -> C -> B -> ... order.
+        """
+
+        df_OUTPUT_map2.to_csv(_OUTPUT+".map", sep='\t', header=False, index=False)
 
 
 
@@ -246,7 +264,7 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
         ########## < 4. Making OUTPUT.ped file > ##########
 
-        print(std_MAIN_PROCESS_NAME + "[4] Making .ped file.\n")
+        # print(std_MAIN_PROCESS_NAME + "[4] Making .ped file.\n")
 
 
         """
@@ -286,14 +304,12 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
             # print(line_INPUT_PED)
 
 
-            t_line_OUTPUT_PED = [PrintGenotypes3(line_INPUT_PED[2*j], line_INPUT_PED[2*j+1], dict_ALL_ALLELES[HLA_names[j]]) for j in range(0, len(HLA_names))]
+            t_line_OUTPUT_PED = [PrintGenotypes3(line_INPUT_PED[2*j], line_INPUT_PED[2*j+1], dict_ALL_ALLELES[HLA_names[j]]) for j in idx_HLA_names2]
             # print(t_line_OUTPUT_PED)
             # print(pd.Series(dict_ALL_ALLELES["A"]))
 
             # Flattening
             line_OUTPUT_PED = [item for eachlist in t_line_OUTPUT_PED for item in eachlist]
-
-            # print("\nFlattened t_line_OUTPUT_PED is \n")
             # print(line_OUTPUT_PED)
 
             to_df_OUTPUT_ped.append(line_OUTPUT_PED)
@@ -302,10 +318,10 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
         df_OUTPUT_ped = pd.DataFrame(to_df_OUTPUT_ped)
         df_OUTPUT_ped.index = INPUT_PED.index
 
-        print(df_OUTPUT_ped.head())
+        # print(df_OUTPUT_ped.head())
 
 
-        # df_OUTPUT_ped.to_csv('.'.join([_OUTPUT, 'HLA.ped']), sep='\t', header=False, index=True)
+        df_OUTPUT_ped.to_csv(_OUTPUT+".ped", sep='\t', header=False, index=True)
 
 
 
@@ -329,7 +345,7 @@ def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
 
 
 
-    return 0
+    return _OUTPUT
 
 
 
@@ -347,10 +363,20 @@ def PrintGenotypes3(_allele1, _allele2, _seg_ALL_ALLELES):
 
         if ((_allele1 != "0") and (_allele2 != "0")):  # The condition for checking integer value 0 won't be included here because .ped file was read with "dtype=str" option.
 
-            t_sr1 = pd.Series(_seg_ALL_ALLELES, index=pd.Index(_seg_ALL_ALLELES)).apply(lambda x: "p" if (x in _allele1) else "a")
+            # (2018. 11. 12.)
+            t_sr1 = pd.Series(_seg_ALL_ALLELES, index=pd.Index(_seg_ALL_ALLELES)).apply(lambda x: "P" if bool(re.match("^"+x, _allele1)) else "A")
             # print("{0} : t_sr1 is \n{1}".format(_locus, t_sr1))
-            t_sr2 = pd.Series(_seg_ALL_ALLELES, index=pd.Index(_seg_ALL_ALLELES)).apply(lambda x: "p" if (x in _allele2) else "a")
+            t_sr2 = pd.Series(_seg_ALL_ALLELES, index=pd.Index(_seg_ALL_ALLELES)).apply(lambda x: "P" if bool(re.match("^"+x, _allele2)) else "A")
             # print("{0} : t_sr1 is \n{1}".format(_locus, t_sr2))
+
+            """
+            (2018. 11. 12.)
+            Above 2 lines are core codes to make encoded HLA bianry marekrs.
+            These lines are slightly modified to be compatible with 4-digit HLA alleles.
+            
+            (ex) A*01:01:01:01 in HATK / 0101 in MakeReference of original version.
+            
+            """
 
             for i in range(0, len(t_sr1)):
                 l_output.append(t_sr1.iat[i])
@@ -361,8 +387,6 @@ def PrintGenotypes3(_allele1, _allele2, _seg_ALL_ALLELES):
 
 
         else:
-
-            # Comments... at most below part.
             # print("At least one of allele is 0")
 
             for i in range(0, len(_seg_ALL_ALLELES)):
