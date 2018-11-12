@@ -131,25 +131,28 @@ def MakeReference_v3(**kwargs):
     ########## < Main > ##########
 
     ##### [1] ENCODE_AA
+    print(std_MAIN_PROCESS_NAME + "[1] Generating HLA AA binary markers.\n")
 
     __HLA_AA__ = b_MARKER_HLA(_type="AA", _hped=_hped, _dict=kwargs["_dict_AA"], _out=_out)
 
 
 
     ##### [2] ENCODE_HLA
-    print(std_MAIN_PROCESS_NAME + "[2] Generating amino acid sequences from HLA types.\n")
+    print(std_MAIN_PROCESS_NAME + "[2] Generating HLA binary markers.\n")
 
     __HLA__ = b_MARKER_HLA(_type="HLA", _hped=_hped, _out=_out)
 
 
 
     ##### [3] ENCODE_SNPS
+    print(std_MAIN_PROCESS_NAME + "[3] Generating HLA SNPS binary markers.\n")
 
     __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _hped=_hped, _dict=kwargs["_dict_SNPS"], _out=_out)
 
 
 
     ##### [4] EXTRACT_FOUNDERS
+    print(std_MAIN_PROCESS_NAME + "[4] Extracting Founders in traditional SNP markers.\n")
 
     # Filtering for traditional SNP markers.("--input")
 
@@ -214,6 +217,7 @@ def MakeReference_v3(**kwargs):
 
 
     ##### [5] MERGE
+    print(std_MAIN_PROCESS_NAME + "[5] Merging whole binary markers.\n")
 
     bed_suffix = (".bed", ".bim", ".fam")
     l_temp = (__HLA_AA_FOUNDERS__, __HLA_SNPS_FOUNDERS__, __HLA_HLA_FOUNDERS__)
@@ -230,9 +234,60 @@ def MakeReference_v3(**kwargs):
 
 
     ##### [6] QC
+    print(std_MAIN_PROCESS_NAME + "[6] Quality Control on MERGED binary markers.\n")
+
+    __HLA_MERGED_freq__ = Plink.Quality_Control("--freq", _bfile=__MERGED_HLA__, _out=__MERGED_HLA__+".FRQ")
+
+    __df_HLA_MERGED_freq__ = pd.read_table(__HLA_MERGED_freq__, sep='\t|\s+', engine='python', header=0)
+    # print(__df_HLA_MERGED_freq__.head())
 
 
-    ##### [7] PREPARE
+    # Filtering MAF.
+    flag_MAF = (__df_HLA_MERGED_freq__.iloc[:, 4] < 0.0001) | (__df_HLA_MERGED_freq__.iloc[:, 4] > 0.9999)
+    MAF = __df_HLA_MERGED_freq__.loc[flag_MAF, :].iloc[:, 1]
+
+    MAF.to_csv(_out+".unqualified2.txt", sep='\t', header=False, index=False)
+
+
+    # Filtering "P", "A" allele order.
+    sr_A1 = __df_HLA_MERGED_freq__.iloc[:, 2]
+    sr_A2 = __df_HLA_MERGED_freq__.iloc[:, 3]
+
+    # flag_allele_order = ((sr_A1 == "A") & (sr_A2 == "P")) | ((sr_A1 == "P") & (sr_A2 == "A"))
+    flag_allele_order = ((sr_A1 == "A") & (sr_A2 == "P"))
+    sr_Labels = __df_HLA_MERGED_freq__.loc[flag_allele_order, "SNP"].reset_index(drop=True)
+    sr_temp = pd.Series(["P" for i in range(0, sr_Labels.shape[0])])
+
+    pd.concat([sr_Labels, sr_temp], axis=1).to_csv(_out+".allele.order.txt", sep='\t', header=False, index=False)
+
+
+    # Filtered MERGED.FRQ(*Final Output*)
+    __HLA_MERGED_output__ = Plink.make_bed(_bfile=__MERGED_HLA__, _out=_out, _geno=0.5, _exclude=_out+".unqualified2.txt",
+                                           _reference_allele=_out+".allele.order.txt")
+
+    __HLA_MERGED_freq_2__ = Plink.Quality_Control("--freq", _bfile=__HLA_MERGED_output__, _out=__HLA_MERGED_output__+".FRQ",
+                                                  _keep_allele_order=True)
+
+
+
+    # ##### [7] PREPARE
+    # print(std_MAIN_PROCESS_NAME + "[7] Preparing Beagle files.\n")
+    # 
+    # df_markers = pd.read_table(__HLA_MERGED_output__+".bim", sep='\t|\s+', engine='python', header=0, dtype=str).iloc[:, [1, 3, 4, 5]]
+    # df_markers.to_csv(_out+".markers", sep='\t', header=False, index=False)
+    #
+    # # final output in .ped/.map format.
+    # __HLA_MERGED_output_2__ = Plink.recode(_bfile=__HLA_MERGED_output__, _out=_out,
+    #                                        _keep_allele_order=True, _alleleACGT=True)
+    #
+    # df_dat = pd.read_table(__HLA_MERGED_output_2__+".map", sep='\t|\s+', engine='python', header=0, dtype=str, usecols=[1])
+    # df_dat.index = pd.Index(["M" for i in range(0, df_dat.shape[0])])
+    # df_dat.to_csv(_out+".dat", sep='\t', header=False, index=True)
+    #
+    # df_nopheno = pd.read_table(__HLA_MERGED_output_2__+".ped", sep='\t|\s+', engine='python', header=0, dtype=str).drop(5, axis=1)
+    # df_nopheno.to_csv(_out+".nopheno.ped", sep='\t', header=False, index=False)
+    #
+    #
 
 
     ##### [8] PHASE

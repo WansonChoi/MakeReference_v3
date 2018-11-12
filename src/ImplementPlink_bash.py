@@ -26,7 +26,8 @@ def make_bed(*args, **kwargs):
     _arguments2 = ["_missing_genotype", "_exclude",
                    "_filter_founders", "_mind", "_alleleACGT",
                    "_allow_no_sex", "_maf",
-                   "_merge_list"]
+                   "_merge_list",
+                   "_reference_allele", "_geno"]
 
 
     keys = kwargs.keys()
@@ -142,3 +143,62 @@ def Quality_Control(*args, **kwargs):
 
 
 
+def recode(*args, **kwargs):
+
+
+    _arguments = ["_file", "_bfile", "_out"]
+    _arguments2 = ["_keep_allele_order", "_alleleACGT"]
+
+
+    keys = kwargs.keys()
+
+    ### Indispensable Arguments.
+
+    # "--file" or "--bfile"
+    if "_file" in keys:
+        _file = kwargs["_file"]
+        _file_c = "--file"
+    elif "_bfile" in keys:
+        _file = kwargs["_bfile"]
+        _file_c = "--bfile"
+    else:
+        print(std_ERROR_MAIN_PROCESS_NAME + "Error in file or bfile arguments.")
+        return -1
+
+    # "--out"
+    if "_out" in keys:
+        _out = kwargs["_out"]
+    else:
+        print(std_ERROR_MAIN_PROCESS_NAME + "Error in out arguments.")
+        return -1
+
+
+    ### Optional Arguments.
+
+    command_optionals = []
+
+    for item in _arguments2:
+        if item in kwargs.keys():
+
+            _arguments2_c = re.sub('_', '-', re.sub(r'(^_)', '--', item))
+            command_optionals.append(_arguments2_c)
+
+            if type(kwargs[item]) == bool and bool(kwargs[item]):
+                pass
+            else:
+                command_optionals.append(str(kwargs[item]))
+
+
+    ### Main Implementation.
+
+    command = ' '.join([PLINK, "--noweb", "--recode",
+                        _file_c, _file,
+                        "--out", _out,
+                        ' '.join(command_optionals)])
+
+    print(command)
+
+    if not os.system(command):
+        return _out
+    else:
+        return -1
