@@ -3,6 +3,7 @@
 import os, sys, re
 import argparse, textwrap
 import pandas as pd
+from numpy import concatenate
 
 from src.HLAtoSequences_forOld import HLAtoSequences
 from src.encodeHLA_forOld import encodeHLA
@@ -61,6 +62,12 @@ def MakeReference_v3(**kwargs):
 
     ### HLA type data.
     _hped = kwargs["_hped"]
+
+    ### Traditional SNP markers
+    _SNPs = kwargs["_input"]
+
+    _SNPs_dirname = os.path.dirname(_SNPs)
+    _SNPs_basename = os.path.basename(_SNPs)
 
 
     ### Dictionary files
@@ -125,7 +132,8 @@ def MakeReference_v3(**kwargs):
 
     ### [1] ENCODE_AA
 
-    # __HLA_AA__ = b_MARKER_HLA(_type="AA", _hped=_hped, _dict=kwargs["_dict_AA"], _out=_out)
+    __HLA_AA__ = b_MARKER_HLA(_type="AA", _hped=_hped, _dict=kwargs["_dict_AA"], _out=_out)
+
 
 
     ### [2] ENCODE_HLA
@@ -133,12 +141,75 @@ def MakeReference_v3(**kwargs):
     __HLA__ = b_MARKER_HLA(_type="HLA", _hped=_hped, _out=_out)
 
 
+
     ### [3] ENCODE_SNPS
 
-    # __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _hped=_hped, _dict=kwargs["_dict_SNPS"], _out=_out)
+    __HLA_SNPS__ = b_MARKER_HLA(_type="SNPS", _hped=_hped, _dict=kwargs["_dict_SNPS"], _out=_out)
+
 
 
     ### [4] EXTRACT_FOUNDERS
+
+    # Filtering for traditional SNP markers.("--input")
+
+    # making bed file.
+    __SNP_FOUNDERS__ = Plink.make_bed(_bfile=_SNPs, _out=(_out+"."+_SNPs_basename+".FOUNDERS"), _filter_founders=True, _mind=0.3, _alleleACGT=True)
+
+    # QC("--hardy", "--freq", "--missing")
+    __hardy__ = Plink.Quality_Control("--hardy", _bfile=__SNP_FOUNDERS__, _out=__SNP_FOUNDERS__)
+    __freq__ = Plink.Quality_Control("--freq", _bfile=__SNP_FOUNDERS__, _out=__SNP_FOUNDERS__)
+    __missing__ = Plink.Quality_Control("--missing", _bfile=__SNP_FOUNDERS__, _out=__SNP_FOUNDERS__)
+
+    print(__hardy__)
+    print(__freq__)
+    print(__missing__)
+
+
+    __df_hardy__ = pd.read_table(__hardy__, sep='\t|\s+', engine='python', header=0)
+
+    flag_p_value = __df_hardy__.iloc[:, 8] < 0.000001
+    p_value = __df_hardy__.loc[flag_p_value, :].iloc[:, 1].unique()
+    p_value.sort()
+    # print(p_value)
+
+
+    __df_freq__ = pd.read_table(__freq__, sep='\t|\s+', engine='python', header=0)
+
+    flag_MAF = __df_freq__.iloc[:, 4] < 0.01
+    MAF = __df_freq__.loc[flag_MAF, :].iloc[:, 1].unique()
+    MAF.sort()
+    # print(MAF)
+
+
+    __df_missing__ = pd.read_table(__missing__, sep='\t|\s+', engine='python', header=0)
+
+    flag_F_MISS = __df_missing__.iloc[:, 4] > 0.05
+    F_MISS = __df_missing__.loc[flag_F_MISS, :].iloc[:, 1].unique()
+    F_MISS.sort()
+    # print(F_MISS)
+
+    target_remove =  list(set(concatenate((p_value, MAF, F_MISS), axis=0)))
+    target_remove.sort()
+
+    pd.Series(target_remove).to_csv(_out+".unqualified.txt", sep='\t', header=False, index=False)
+
+
+    # excluding
+    __SNP_FOUNDERS_2__ = Plink.make_bed(_bfile=__SNP_FOUNDERS__, _out=__SNP_FOUNDERS__+".QC",
+                         _exclude=_out+".unqualified.txt", _allow_no_sex=True)
+
+
+
+
+    # Filtering generated HLA binary markers(AA, SNPS, HLA)
+
+    __HLA_AA_FOUNDERS__ = Plink.make_bed(_bfile=__HLA_AA__, _out=__HLA_AA__+".FOUNDERS",
+                                         _filter_founders=True, _maf=0.0001)
+    __HLA_SNPS_FOUNDERS__ = Plink.make_bed(_bfile=__HLA_SNPS__, _out=__HLA_SNPS__+".FOUNDERS",
+                                           _filter_founders=True, _maf=0.0001)
+    __HLA_HLA_FOUNDERS__ = Plink.make_bed(_bfile=__HLA__, _out=__HLA__+".FOUNDERS",
+                                         _filter_founders=True, _maf=0.0001)
+
 
 
     ### [5] MERGE
