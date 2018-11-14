@@ -289,7 +289,7 @@ def MakeReference_v3(**kwargs):
     df_nopheno = pd.read_table(__HLA_MERGED_output_2__+".ped", sep='\t|\s+', engine='python', header=None, dtype=str).drop(5, axis=1)
     df_nopheno.to_csv(_out+".nopheno.ped", sep='\t', header=False, index=False)
 
-    # linkage2beagle
+    # linkage2beagle.jar
     command = ' '.join([_p_JAVA, "-Xmx500m", "-jar", _p_linkage2beagle, "pedigree={0}".format(_out+".nopheno.ped"), "data={0}".format(_out+".dat"),
                         "beagle={0}".format(_out+".bgl"), "standard=true", ">", "{0}".format(_out+".bgl.log")])
     print(command)
@@ -301,6 +301,15 @@ def MakeReference_v3(**kwargs):
 
 
     ##### [8] PHASE
+
+    # beagle.jar
+    command = ' '.join([_p_JAVA, "-Xmx500m", "-jar", _p_beagle, "maxwindow=1000", "verbose=true", "missing=0", "nsamples=4", "niterations=10",
+                        "unphased={0}".format(_out+".bgl"), "log={0}".format(_out+".phasing"), ">>", "{0}".format(_out+".bgl.log")])
+    print(command)
+
+    if bool(os.system(command)):
+        print(std_ERROR_MAIN_PROCESS_NAME + "Failed to implement beagle.jar\n")
+        sys.exit()
 
 
     ##### [9] CLEANUP
