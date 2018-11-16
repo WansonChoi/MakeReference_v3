@@ -4,9 +4,9 @@
 __pycache__/
 
 # [ Folders ]
-dependency/
-data/
-data
+#dependency/
+#data/
+#data
 back_up/
 test/
 
