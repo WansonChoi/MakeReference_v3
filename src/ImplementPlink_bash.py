@@ -63,7 +63,7 @@ def make_bed(*args, **kwargs):
             _arguments2_c = re.sub('_', '-', re.sub(r'(^_)', '--', item))
             command_optionals.append(_arguments2_c)
 
-            if type(kwargs[item]) == bool and bool(kwargs[item]):
+            if (type(kwargs[item]) == bool) and bool(kwargs[item]):
                 pass
             else:
                 command_optionals.append(str(kwargs[item]))

@@ -21,6 +21,9 @@ std_WARNING_MAIN_PROCESS_NAME = "\n[%s::WARNING]: " % (os.path.basename(__file__
 
 HLA_names = ["A", "B", "C", "DPA1", "DPB1", "DQA1", "DQB1", "DRB1"]
 
+# Files to be removed in the end.
+__REMOVE__ = []
+
 
 def MakeReference_v3(**kwargs):
 
@@ -217,6 +220,11 @@ def MakeReference_v3(**kwargs):
                                          _filter_founders=True, _maf=0.0001)
 
 
+    # Garbage Collecting
+    __REMOVE__.append(_out + ".unqualified.txt")
+
+
+
 
     ##### [5] MERGE
     print(std_MAIN_PROCESS_NAME + "[5] Merging whole binary markers.\n")
@@ -232,6 +240,11 @@ def MakeReference_v3(**kwargs):
     __MERGED_HLA__ = Plink.make_bed(_bfile=__SNP_FOUNDERS_2__, _out=(_out+"."+_SNPs_basename+".MERGED.FOUNDERS"),
                                     _merge_list = _out+".mergelist.txt")
     print(__MERGED_HLA__)
+
+
+    # Garbage Collecting
+    __REMOVE__.extend([__HLA_AA__+".*", __HLA__+".*", __HLA_SNPS__+".*", _out+".mergelist.txt"])
+
 
 
 
@@ -270,6 +283,9 @@ def MakeReference_v3(**kwargs):
     __HLA_MERGED_freq_2__ = Plink.Quality_Control("--freq", _bfile=__HLA_MERGED_output__, _out=__HLA_MERGED_output__+".FRQ",
                                                   _keep_allele_order=True)
 
+    # Garbage Collecting
+    __REMOVE__.extend([_out+".unqualified2.txt", __MERGED_HLA__+".*", _out+".allele.order.txt", __SNP_FOUNDERS__+".*"])
+
 
 
     ##### [7] PREPARE
@@ -299,6 +315,10 @@ def MakeReference_v3(**kwargs):
         sys.exit()
 
 
+    # Garbage Collecting
+    __REMOVE__.extend([(_out + item) for item in [".nopheno.ped", ".ped", ".map", ".dat"]])
+
+
 
     ##### [8] PHASE
 
@@ -312,8 +332,22 @@ def MakeReference_v3(**kwargs):
         sys.exit()
 
 
+    # Garbage Collecting
+    __REMOVE__.extend([(_out + item) for item in [".bgl.gprobs", ".bgl.r2", ".bgl", ".phasing.log"]])
+
+
+
+
     ##### [9] CLEANUP
 
+    print("__REMOVE__")
+
+    command = ' '.join(["rm", ' '.join(__REMOVE__)])
+    print(command)
+
+    if bool(os.system(command)):
+        print(std_ERROR_MAIN_PROCESS_NAME + "Failed to remove target files successfully.\n")
+        return -1
 
 
 
@@ -441,7 +475,7 @@ if __name__ == "__main__":
 
     parser.add_argument("-h", "--help", help="\nShow this help message and exit\n\n", action='help')
 
-    parser.add_argument("--input", "-i", help="\nInput Data file(.bed/.bim/.fam)\n\n", required=True)
+    parser.add_argument("--input", "-i", help="\nInput SNP data file(.bed/.bim/.fam)\n\n", required=True)
     parser.add_argument("--out", "-o", help="\nOutput file prefix\n\n", required=True)
 
     parser.add_argument("-hped", help="\nHLA Type Data(.ped)\n\n", required=True)
@@ -455,15 +489,15 @@ if __name__ == "__main__":
 
 
     ##### <for Test> #####
-    args = parser.parse_args(["-hped", "data/HAPMAP_CEU_HLA.ped",
-                              "-i", "data/HAPMAP_CEU",
-                              "-dict-AA", "data/HLA_DICTIONARY_AA",
-                              "-dict-SNPS", "data/HLA_DICTIONARY_SNPS",
-                              "-o", "test/20181108/Trial_1"])
+    # args = parser.parse_args(["-hped", "data/HAPMAP_CEU_HLA.ped",
+    #                           "-i", "data/HAPMAP_CEU",
+    #                           "-dict-AA", "data/HLA_DICTIONARY_AA",
+    #                           "-dict-SNPS", "data/HLA_DICTIONARY_SNPS",
+    #                           "-o", "test/20181116/Trial_1"])
 
 
     ##### <for Publications> #####
-    # args = parser.parse_args()
+    args = parser.parse_args()
     print(args)
 
 
