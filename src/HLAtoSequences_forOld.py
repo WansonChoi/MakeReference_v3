@@ -14,6 +14,9 @@ HLA_names = ["A", "B", "C", "DPA1", "DPB1", "DQA1", "DQB1", "DRB1"]
 HLA_names2 = ["A", "C", "B", "DRB1", "DQA1", "DQB1", "DPA1", "DPB1"]
 isREVERSE = {'A': False, 'C': True, 'B': True, 'DRB1': True, 'DQA1': False, 'DQB1': True, 'DPA1': True, 'DPB1': False}
 
+HLA_DICTIONARY_byHLA = {}
+Seqs_LEN_byHLA = {}
+
 
 def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
                    _return_as_dataframe=False):
@@ -24,8 +27,8 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
 
     HLA_DICTIONARY = pd.DataFrame()
-    HLA_DICTIONARY2 = {}
-    ALLELES_SEQ_LENGTH = {}
+    # HLA_DICTIONARY_byHLA = {}
+    # Seqs_LEN_byHLA = {}
 
 
 
@@ -70,13 +73,15 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
         HLA_DICTIONARY = pd.read_table(_dictionary_seq, sep='\t', header=None, names=["Alleles", "Seqs", "INS"], index_col=0).fillna("")
 
         # Dividing `HLA_DICTIONARY` in advance.
-        HLA_DICTIONARY2 = {HLA_names[i]: HLA_DICTIONARY.filter(regex= ''.join(["^", HLA_names[i], "\:"]), axis=0) for i in range(0, len(HLA_names))}
+        global HLA_DICTIONARY_byHLA
+        HLA_DICTIONARY_byHLA = {HLA_names[i]: HLA_DICTIONARY.filter(regex=''.join(["^", HLA_names[i], "\:"]), axis=0) for i in range(0, len(HLA_names))}
 
         # for i in range(0, len(HLA_names)):
         #     print("\nSequence Information of %s" % HLA_names[i])
-        #     print(HLA_DICTIONARY2[HLA_names[i]].head())
+        #     print(HLA_DICTIONARY_byHLA[HLA_names[i]].head())
 
-        ALLELES_SEQ_LENGTH = {HLA_names[i] : (len(HLA_DICTIONARY2[HLA_names[i]].iat[0, 0]) + len(HLA_DICTIONARY2[HLA_names[i]].iat[0, 1])) for i in range(0, len(HLA_names))}
+        global Seqs_LEN_byHLA
+        Seqs_LEN_byHLA = {HLA_names[i]: (len(HLA_DICTIONARY_byHLA[HLA_names[i]].iat[0, 0]) + len(HLA_DICTIONARY_byHLA[HLA_names[i]].iat[0, 1])) for i in range(0, len(HLA_names))}
 
 
 
@@ -99,7 +104,7 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
         # print("\n[3] Cleaning HLA allele names.")
 
-        CHPED = pd.concat([HPED.filter(regex='_'.join([HLA_names[i], '\d{1}']), axis=1).applymap(lambda x : NomenCleaner_forOld(x, HLA_names[i], HLA_DICTIONARY2[HLA_names[i]].index.to_series()) if x != "0" else x) for i in range(0, len(HLA_names))], axis=1)
+        CHPED = pd.concat([HPED.filter(regex='_'.join([HLA_names[i], '\d{1}']), axis=1).applymap(lambda x : NomenCleaner_forOld(x, HLA_names[i], HLA_DICTIONARY_byHLA[HLA_names[i]].index.to_series()) if x != "0" else x) for i in range(0, len(HLA_names))], axis=1)
         # print(CHPED.head())
 
         # Exporting
@@ -119,10 +124,10 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
             ### Bringing Sequences
 
-            curr_dict = HLA_DICTIONARY2[HLA_names2[i]]
+            # curr_dict = HLA_DICTIONARY_byHLA[HLA_names2[i]]
 
             # HLA columns(each 2 columns)
-            df_temp = CHPED.filter(regex='_'.join([HLA_names2[i], '\d{1}']), axis=1).applymap(lambda x : BringSequence(x, HLA_names2[i], curr_dict) if x != "0" else x)
+            df_temp = CHPED.filter(regex='_'.join([HLA_names2[i], '\d{1}']), axis=1).applymap(lambda x : BringSequence(x, HLA_names2[i], _type) if x != "0" else x)
             # print(df_temp.head())
 
 
@@ -150,7 +155,7 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
                     # (Case2) when not found as a pair of alleles, but as a only single allele, => 0 is given
                     # (0, 0) will be compensated as length of `HLA_seq`, Due to here, I need to prepared `len(HLA_seq)` beforehand.
 
-                    seq1 = ['0' for z in range(0, ALLELES_SEQ_LENGTH[HLA_names2[i]])]
+                    seq1 = ['0' for z in range(0, Seqs_LEN_byHLA[HLA_names2[i]])]
 
                     PAIRED = [value for item in zip(seq1, seq1) for value in item]
 
@@ -190,7 +195,7 @@ def HLAtoSequences(_hped, _dictionary_seq, _type, _out,
 
 
 
-def BringSequence(_single_allele, _hla, _dict):
+def BringSequence(_single_allele, _hla, _type):
 
     # try:
     #     Seq = _dict.loc[_single_allele, "Seqs"]
@@ -199,10 +204,30 @@ def BringSequence(_single_allele, _hla, _dict):
     #
     # return Seq
 
-    df_temp = _dict.filter(regex=re.escape(_single_allele), axis=0)
+    df_temp = HLA_DICTIONARY_byHLA[_hla].filter(regex=re.escape(_single_allele), axis=0)
+
 
     if df_temp.shape[0] > 0:
-        Seq = df_temp.iat[0, 0] if not isREVERSE[_hla] else df_temp.iat[0, 0][::-1]
+
+        """
+        (2018. 11. 21.)
+        In the dictionaries of original version of MakeReference, Preprocessing is done differently.
+        
+        < AA dictionary >
+        - Reversing is needed to reverse strand HLA genes.
+        
+        < SNP dictionary >
+        - Reversing is already done.
+        - Complementation is already done. 
+        
+        """
+
+        if _type == "AA":
+            Seq = df_temp.iat[0, 0] if not isREVERSE[_hla] else df_temp.iat[0, 0][::-1]
+        elif _type == "SNPS":
+            Seq = df_temp.iat[0, 0]
+
+
         Ins = df_temp.iat[0, 1]
 
         return (Seq + Ins)
@@ -214,7 +239,17 @@ def NomenCleaner_forOld(_single_allele, _hla, _sr_alleles):
 
 
     if len(_single_allele) == 2 or len(_single_allele) == 3:
-        return ':'.join([_hla, _single_allele])
+
+
+        """
+        (2018. 11. 20.)
+        
+        Test for 2 or 3-digit alleles.
+        2 or 3-digit alleles will be "0" so that it will be excluded in preprocessing.
+        """
+
+        # return ':'.join([_hla, _single_allele])
+        return "0"
 
 
     if len(_single_allele) == 4:
@@ -325,6 +360,11 @@ if __name__ == '__main__':
     #                           "-dict", "/Users/wansun/Git_Projects/HATK_2nd/hatk_2nd/IMGT370_fixed/HLA_DICTIONARY_SNPS.hg18.imgt370.txt",
     #                           "-type", "SNPS",
     #                           "-o", "/Users/wansun/Git_Projects/HATK_2nd/hatk_2nd/TEST_HATK"])
+
+    # args = parser.parse_args(["-hped", "/Users/wansun/Git_Projects/MakeReference_v3/data/HAPMAP_CEU_HLA.ped",
+    #                           "-dict", "/Users/wansun/Git_Projects/MakeReference_v3/data/HLA_DICTIONARY_AA.txt",
+    #                           "-type", "AA",
+    #                           "-o", "/Users/wansun/Projects/20181119_MakeReference_v3_validation/_Step2_HLAtoSequences/20181120_test"])
 
 
     ##### <for Publication> #####

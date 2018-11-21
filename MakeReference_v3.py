@@ -321,6 +321,7 @@ def MakeReference_v3(**kwargs):
 
 
     ##### [8] PHASE
+    print(std_MAIN_PROCESS_NAME + "[8] Beagle Phasing.\n")
 
     # beagle.jar
     command = ' '.join([_p_JAVA, "-Xmx500m", "-jar", _p_beagle, "maxwindow=1000", "verbose=true", "missing=0", "nsamples=4", "niterations=10",
@@ -339,8 +340,7 @@ def MakeReference_v3(**kwargs):
 
 
     ##### [9] CLEANUP
-
-    print("__REMOVE__")
+    print(std_MAIN_PROCESS_NAME + "[9] Clean-up.\n")
 
     command = ' '.join(["rm", ' '.join(__REMOVE__)])
     print(command)
@@ -493,7 +493,7 @@ if __name__ == "__main__":
     #                           "-i", "data/HAPMAP_CEU",
     #                           "-dict-AA", "data/HLA_DICTIONARY_AA",
     #                           "-dict-SNPS", "data/HLA_DICTIONARY_SNPS",
-    #                           "-o", "test/20181116/Trial_1"])
+    #                           "-o", "test/20181121_1/20181121_SNPfixed2"])
 
 
     ##### <for Publications> #####

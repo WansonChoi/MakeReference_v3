@@ -20,15 +20,18 @@ isREVERSE = {'A': False, 'C': True, 'B': True, 'DRB1': True, 'DQA1': False, 'DQB
 
 
 
-def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "19"):
+def encodeHLA(_INPUT_PED, _OUTPUT, _hg = "18"):
 
 
     ########## <Core Variables> ##########
 
-    # (2018. 9. 25.) Replaced by lift-over values.
-    genepos_hg ={"18" : {"A": 30018226, "C": 31344505, "B": 31429628, "DRB1": 32654525, "DQA1": 32713161, "DQB1": 32735219, "DPA1": 33140324, "DPB1": 33151681},
-                 "19" : {"A": 29910247, "C": 31236526, "B": 31321649, "DRB1": 32546547, "DQA1": 32605183, "DQB1": 32627241, "DPA1": 33032346, "DPB1": 33043703},
-                 "38" : {"A": 29942470, "C": 31268749, "B": 31353872, "DRB1": 32578770, "DQA1": 32637406, "DQB1": 32659464, "DPA1": 33064569, "DPB1": 33075926}}
+    # # (2018. 9. 25.) Replaced by lift-over values.
+    # genepos_hg ={"18" : {"A": 30018226, "C": 31344505, "B": 31429628, "DRB1": 32654525, "DQA1": 32713161, "DQB1": 32735219, "DPA1": 33140324, "DPB1": 33151681},
+    #              "19" : {"A": 29910247, "C": 31236526, "B": 31321649, "DRB1": 32546547, "DQA1": 32605183, "DQB1": 32627241, "DPA1": 33032346, "DPB1": 33043703},
+    #              "38" : {"A": 29942470, "C": 31268749, "B": 31353872, "DRB1": 32578770, "DQA1": 32637406, "DQB1": 32659464, "DPA1": 33064569, "DPB1": 33075926}}
+
+    # (2018. 11. 21.) Reverting back to original genomic position version.
+    genepos_hg ={"18" : {"A": 30019970, "C": 31346171, "B": 31431272, "DRB1": 32660042, "DQA1": 32716284, "DQB1": 32739039, "DPA1": 33145064, "DPB1": 33157346}}
 
 
     # Set of allele names ocurring in each HLA columns of given ped file.
