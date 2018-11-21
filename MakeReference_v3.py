@@ -22,6 +22,7 @@ std_WARNING_MAIN_PROCESS_NAME = "\n[%s::WARNING]: " % (os.path.basename(__file__
 HLA_names = ["A", "B", "C", "DPA1", "DPB1", "DQA1", "DQB1", "DRB1"]
 
 # Files to be removed in the end.
+f_glabal_remove = True
 __REMOVE__ = []
 
 
@@ -35,6 +36,7 @@ def MakeReference_v3(**kwargs):
 
     # optional arguments
     _arguments2 = ["_p_plink", "_p_JAVA", "_p_beagle", "_p_linkage2beagle"]
+    _arguments3 = ["_remove_intermediates"]
 
 
     # Checking indispensable arguments.
@@ -48,11 +50,21 @@ def MakeReference_v3(**kwargs):
         if item not in kwargs.keys():
             kwargs[item] = None
 
+    for item in _arguments3:
+        if item not in kwargs.keys():
+            kwargs[item] = "Not_given"
+
     print(kwargs)
 
 
-
-
+    if kwargs["_remove_intermediates"] == "Not_given":
+        pass
+    else:
+        if type(kwargs["_remove_intermediates"]) == bool:
+            f_glabal_remove = kwargs["_remove_intermediates"]
+        else:
+            print(std_ERROR_MAIN_PROCESS_NAME + "The argument \"_remove_intermediates\" must have \"True\" or \"False\" value. Please check it again.\n")
+            sys.exit()
 
 
     ########## < Core Variables > ##########
@@ -340,14 +352,17 @@ def MakeReference_v3(**kwargs):
 
 
     ##### [9] CLEANUP
-    print(std_MAIN_PROCESS_NAME + "[9] Clean-up.\n")
 
-    command = ' '.join(["rm", ' '.join(__REMOVE__)])
-    print(command)
+    if f_glabal_remove:
 
-    if bool(os.system(command)):
-        print(std_ERROR_MAIN_PROCESS_NAME + "Failed to remove target files successfully.\n")
-        return -1
+        print(std_MAIN_PROCESS_NAME + "[9] Clean-up.\n")
+
+        command = ' '.join(["rm", ' '.join(__REMOVE__)])
+        print(command)
+
+        if bool(os.system(command)):
+            print(std_ERROR_MAIN_PROCESS_NAME + "Failed to remove target files successfully.\n")
+            return -1
 
 
 
@@ -493,7 +508,7 @@ if __name__ == "__main__":
     #                           "-i", "data/HAPMAP_CEU",
     #                           "-dict-AA", "data/HLA_DICTIONARY_AA",
     #                           "-dict-SNPS", "data/HLA_DICTIONARY_SNPS",
-    #                           "-o", "test/20181121_1/20181121_SNPfixed2"])
+    #                           "-o", "test/20181121_2/20181121_save_intermediates"])
 
 
     ##### <for Publications> #####
@@ -503,9 +518,13 @@ if __name__ == "__main__":
 
 
 
-    MakeReference_v3(_hped=args.hped, _input=args.input, _out=args.out,
-                     _dict_AA=args.dict_AA, _dict_SNPS=args.dict_SNPS)
+    # MakeReference_v3(_hped=args.hped, _input=args.input, _out=args.out,
+    #                  _dict_AA=args.dict_AA, _dict_SNPS=args.dict_SNPS)
 
     # MakeReference_v3(_hped=args.hped, _input=args.input, _out=args.out,
     #                  _dict_AA=args.dict_AA, _dict_SNPS=args.dict_SNPS,
     #                  _p_plink = "./dependency/plink", _p_beagle="./dependency/beagle.jar", _p_linkage2beagle="lalal")
+
+
+    MakeReference_v3(_hped=args.hped, _input=args.input, _out=args.out,
+                     _dict_AA=args.dict_AA, _dict_SNPS=args.dict_SNPS, _remove_intermediates=False)
